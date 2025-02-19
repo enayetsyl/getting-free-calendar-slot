@@ -7,28 +7,30 @@ app.use(bodyParser.json()); // Parse JSON request body
 
 // Function to find available 15-min slots
 function findAvailableSlots(busyTimesUTC) {
-    const startOfDay = DateTime.fromISO("2025-02-17T00:00:00", { zone: "America/New_York" });
-    const endOfDay = DateTime.fromISO("2025-02-17T23:45:00", { zone: "America/New_York" });
+    if (busyTimesUTC.length === 0) return { message: "No busy times provided" };
 
-    // Convert busy times from UTC to EST
-    let busyTimesEST = busyTimesUTC.map(range => ({
-        start: DateTime.fromISO(range.start, { zone: "utc" }).setZone("America/New_York"),
-        end: DateTime.fromISO(range.end, { zone: "utc" }).setZone("America/New_York")
+    // Find the earliest and latest busy time to dynamically set the date range
+    const earliestBusyTime = DateTime.fromISO(busyTimesUTC[0].start, { zone: "utc" }).startOf("day");
+    const latestBusyTime = DateTime.fromISO(busyTimesUTC[busyTimesUTC.length - 1].start, { zone: "utc" }).endOf("day");
+
+    let busyTimes = busyTimesUTC.map(range => ({
+        start: DateTime.fromISO(range.start, { zone: "utc" }),
+        end: DateTime.fromISO(range.end, { zone: "utc" })
     }));
 
     let availableSlots = [];
-    let currentSlot = startOfDay;
+    let currentSlot = earliestBusyTime;
 
-    while (currentSlot <= endOfDay) {
-        let nextSlot = currentSlot.plus({ minutes: 15 });
+    while (currentSlot <= latestBusyTime) {
+        let nextSlot = currentSlot.plus({ minutes: 10 });
 
-        let isOverlapping = busyTimesEST.some(busy =>
-            currentSlot < busy.end && nextSlot > busy.start
+        let isOverlapping = busyTimes.some(busy =>
+            (currentSlot >= busy.start && currentSlot < busy.end) ||
+            (nextSlot > busy.start && nextSlot < busy.end)
         );
-        
 
         if (!isOverlapping) {
-            availableSlots.push(currentSlot.toFormat("yyyy-MM-dd'T'HH:mm:ss"));
+            availableSlots.push(currentSlot.toISO()); // Keep in ISO format
         }
 
         currentSlot = nextSlot;
@@ -42,11 +44,14 @@ function findAvailableSlots(busyTimesUTC) {
 // POST route to check available slots
 app.post("/available-slots", (req, res) => {
     const { busyTimes } = req.body;
-    if (!Array.isArray(busyTimes)) {
-        return res.status(400).json({ error: "Invalid input, expected an array of busy times" });
+    console.log('busyTimes:', busyTimes);
+
+    if (!Array.isArray(busyTimes) || busyTimes.length === 0) {
+        return res.status(400).json({ error: "Invalid input, expected a non-empty array of busy times" });
     }
 
     const result = findAvailableSlots(busyTimes);
+    console.log("result:", result);
     return res.json(result);
 });
 

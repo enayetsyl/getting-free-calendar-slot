@@ -23,9 +23,9 @@ function findAvailableSlots(busyTimesUTC) {
         let nextSlot = currentSlot.plus({ minutes: 15 });
 
         let isOverlapping = busyTimesEST.some(busy =>
-            (currentSlot >= busy.start && currentSlot < busy.end) ||
-            (nextSlot > busy.start && nextSlot <= busy.end)
+            currentSlot < busy.end && nextSlot > busy.start
         );
+        
 
         if (!isOverlapping) {
             availableSlots.push(currentSlot.toFormat("yyyy-MM-dd'T'HH:mm:ss"));

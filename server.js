@@ -5,16 +5,17 @@ const { DateTime } = require("luxon");
 const app = express();
 app.use(bodyParser.json()); // Parse JSON request body
 
-// Function to find available 15-min slots
+// Function to find available 10-min slots after the current time in EST
 function findAvailableSlots(busyTimesUTC) {
     if (busyTimesUTC.length === 0) return { message: "No busy times provided" };
 
-    // Get current time in UTC (rounded down to the nearest 10 minutes)
-    let currentTime = DateTime.utc().startOf("minute");
-    let roundedMinutes = Math.floor(currentTime.minute / 10) * 10;
-    currentTime = currentTime.set({ minute: roundedMinutes });
+    // Get the current time in EST (New York time) and round it down to the nearest 10 minutes
+    let currentTimeEST = DateTime.now().setZone("America/New_York").startOf("minute");
+    let roundedMinutes = Math.floor(currentTimeEST.minute / 10) * 10;
+    currentTimeEST = currentTimeEST.set({ minute: roundedMinutes });
 
-    console.log("current time", currentTime)
+    // Convert currentTimeEST to UTC for accurate comparison with busy times
+    let currentTimeUTC = currentTimeEST.setZone("utc");
 
     // Find the earliest and latest busy time to dynamically set the date range
     const earliestBusyTime = DateTime.fromISO(busyTimesUTC[0].start, { zone: "utc" }).startOf("day");
@@ -26,7 +27,7 @@ function findAvailableSlots(busyTimesUTC) {
     }));
 
     let availableSlots = [];
-    let currentSlot = DateTime.max(currentTime, earliestBusyTime); // Ensure we start from the later of the two
+    let currentSlot = DateTime.max(currentTimeUTC, earliestBusyTime); // Ensure we start from the later of the two
 
     while (currentSlot <= latestBusyTime) {
         let nextSlot = currentSlot.plus({ minutes: 10 });
@@ -37,7 +38,7 @@ function findAvailableSlots(busyTimesUTC) {
         );
 
         if (!isOverlapping) {
-            availableSlots.push(currentSlot.toISO()); 
+            availableSlots.push(currentSlot.toISO());
         }
 
         currentSlot = nextSlot;
@@ -45,7 +46,7 @@ function findAvailableSlots(busyTimesUTC) {
 
     return availableSlots.length > 0
         ? { alternateTimes: availableSlots }
-        : { message: "No slots available" };
+        : { message: "No slots available after current time" };
 }
 
 // POST route to check available slots

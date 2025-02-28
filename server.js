@@ -38,7 +38,8 @@ function findAvailableSlots(busyTimesUTC) {
         );
 
         if (!isOverlapping) {
-            availableSlots.push(currentSlot.toISO());
+            // Convert available slots to New York time
+            availableSlots.push(currentSlot.setZone("America/New_York").toISO());
         }
 
         currentSlot = nextSlot;

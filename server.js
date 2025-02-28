@@ -9,9 +9,16 @@ app.use(bodyParser.json()); // Parse JSON request body
 function findAvailableSlots(busyTimesUTC) {
     if (busyTimesUTC.length === 0) return { message: "No busy times provided" };
 
+    // Get current time in UTC (rounded down to the nearest 10 minutes)
+    let currentTime = DateTime.utc().startOf("minute");
+    let roundedMinutes = Math.floor(currentTime.minute / 10) * 10;
+    currentTime = currentTime.set({ minute: roundedMinutes });
+
+    console.log("current time", currentTime)
+
     // Find the earliest and latest busy time to dynamically set the date range
     const earliestBusyTime = DateTime.fromISO(busyTimesUTC[0].start, { zone: "utc" }).startOf("day");
-    const latestBusyTime = DateTime.fromISO(busyTimesUTC[busyTimesUTC.length - 1].start, { zone: "utc" }).endOf("day");
+    const latestBusyTime = DateTime.fromISO(busyTimesUTC[busyTimesUTC.length - 1].end, { zone: "utc" }).endOf("day");
 
     let busyTimes = busyTimesUTC.map(range => ({
         start: DateTime.fromISO(range.start, { zone: "utc" }),
@@ -19,7 +26,7 @@ function findAvailableSlots(busyTimesUTC) {
     }));
 
     let availableSlots = [];
-    let currentSlot = earliestBusyTime;
+    let currentSlot = DateTime.max(currentTime, earliestBusyTime); // Ensure we start from the later of the two
 
     while (currentSlot <= latestBusyTime) {
         let nextSlot = currentSlot.plus({ minutes: 10 });
@@ -30,7 +37,7 @@ function findAvailableSlots(busyTimesUTC) {
         );
 
         if (!isOverlapping) {
-            availableSlots.push(currentSlot.toISO()); // Keep in ISO format
+            availableSlots.push(currentSlot.toISO()); 
         }
 
         currentSlot = nextSlot;

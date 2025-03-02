@@ -45,6 +45,10 @@ function findAvailableSlots(busyTimesUTC) {
         currentSlot = nextSlot;
     }
 
+    if (availableSlots.length > 0) {
+        availableSlots.shift(); // Remove the first item
+    }
+
     return availableSlots.length > 0
         ? { alternateTimes: availableSlots }
         : { message: "No slots available after current time" };

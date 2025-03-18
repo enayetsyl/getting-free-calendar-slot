@@ -68,6 +68,45 @@ app.post("/available-slots", (req, res) => {
     return res.json(result);
 });
 
+
+app.post('/filter', (req, res) => {
+    const { now, resultList } = req.body;
+    
+    if (!now || !resultList) {
+        return res.status(400).json({ error: "Missing required fields: 'now' and/or 'resultList'" });
+    }
+    console.log('now', now)
+    console.log('resultList', resultList)
+    
+    // Parse the provided now timestamp
+    const nowDate = new Date(now);
+    if (isNaN(nowDate.getTime())) {
+      return res.status(400).json({ error: "Invalid 'now' timestamp format" });
+    }
+    
+    // Calculate the time 30 minutes from now (in milliseconds)
+    const thirtyMinutesMs = 30 * 60 * 1000;
+    const nowPlus30 = new Date(nowDate.getTime() + thirtyMinutesMs);
+  
+    // Filter the resultList to only include records scheduled within the next 30 minutes
+    const validResults = resultList.filter(record => {
+      // Field "4" contains the scheduled time (in ISO 8601 format)
+      if (!record["4"]) return false;
+      
+      const scheduledTime = new Date(record["4"]);
+      // Check if scheduledTime is valid and falls between now and now+30 minutes
+      return !isNaN(scheduledTime.getTime()) && scheduledTime >= nowDate && scheduledTime <= nowPlus30;
+    });
+
+    console.log("valid result", validResults)
+  
+    // Return the filtered data in the response
+    res.status(200).json({
+      valid_results: validResults,
+      fileSize: JSON.stringify(validResults).length // optional: size of the result payload
+    });
+  });
+
 // Start the server
 const PORT = 3000;
 app.listen(PORT, () => {
